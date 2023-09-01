@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Custom VPC Creation With 2 Private and 2 Public Subnets in AZs us-east-1a and us-east-1b."
+Description: "Custom VPC Creation With 2 Private and 2 Public Subnets in AZs us-east-1a and us-east-1b. Windows EC2 launches in public subnet A."
 
 Parameters:
   EC2InstanceType:
@@ -127,6 +127,7 @@ Resources:
     Properties:
       GroupName: !Sub '${AWS::StackName}-sg'
       GroupDescription: "Allow HTTP/HTTPS and SSH inbound and outbound traffic"
+      VpcId: !Ref myVPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -154,6 +155,7 @@ Resources:
       AvailabilityZone: !Select [0, Fn::GetAZs: !Ref 'AWS::Region']
       ImageId: !Ref AmiID
       InstanceType: !Ref EC2InstanceType
+      SubnetId: !Ref PublicSubnetA
       KeyName: !Ref SSHKey
       SecurityGroupIds:
         - !Ref EC2SecurityGroup
