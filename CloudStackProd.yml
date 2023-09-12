@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Custom VPC Creation With 2 Private and 2 Public Subnets in AZs us-east-1a and us-east-1b. Windows EC2 launches in public subnet A."
+Description: "CloudFormation Template"
 
 Parameters:
   WindowsInstance:
@@ -61,6 +61,49 @@ Parameters:
   SSHKey:
     Type: AWS::EC2::KeyPair::KeyName
     Description: Select Key Pair to SSH into the instance
+
+  DBName:
+    NoEcho: false
+    Description: Schema name for Postgresql database
+    Type: String
+    MinLength: 1
+    MaxLength: 16
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
+    Default: products
+
+  DBInstanceType:
+    Type: String
+    Default: db.t3.micro
+    AllowedValues:
+      - db.t3.micro
+      - db.t4g.micro
+    Description: Free tier allows for db.t3.micro or db.t4g.micro.
+
+  DBStorage:
+    Description: Database allocated storage in GB
+    Type: Number
+    Default: 100
+
+  DBUsername:
+    NoEcho: false
+    Description: Username for Postgresql database
+    Type: String
+    MinLength: 1
+    MaxLength: 16
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
+    Default: postgres
+
+  DBPassword:
+    NoEcho: true
+    Description: Password for Postgresql database
+    Type: String
+    MinLength: 8
+    MaxLength: 30
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: Must contain only alphanumeric characters.
+
 
 Resources:
   ## VPC
@@ -246,3 +289,44 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-linux-eip'
+
+  ## Database
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties: 
+      DBSubnetGroupDescription: "RDS subnet group us-east-1a and us-east-1b"
+      SubnetIds: 
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-DBsubnetGroup'
+
+  RDSinstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub '${AWS::StackName}-postgres'
+      DBInstanceClass: !Ref DBInstanceType
+      AllocatedStorage: !Ref DBStorage
+      Engine: postgres
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-postgres'
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+
+Outputs:
+  WindowsIP:
+    Value: !Sub http://${WindowsEIP}
+    Description: Windows EC2 IP address
+
+  LinuxIP:
+    Value: !Sub http://${LinuxEIP}
+    Description: Linux EC2 IP address
+
+  DBEndpoint:
+    Description: "URL endpoint for the database"
+    Value: !GetAtt RDSinstance.Endpoint.Address
