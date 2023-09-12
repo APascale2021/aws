@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: "Custom VPC Creation With 2 Private and 2 Public Subnets in AZs us-east-1a and us-east-1b. Windows EC2 launches in public subnet A."
 
 Parameters:
-  EC2InstanceType:
+  WindowsInstance:
     Type: String
     Default: t3.micro
     AllowedValues:
@@ -12,10 +12,51 @@ Parameters:
       - m1.large
     Description: Free tier allows for t2.micro or t3.micro.
 
-  AmiID:
+  WindowsAMI:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Description: "Microsoft Windows 2022 64-bit (x86)"
     Default: windows2022-ami-x86_64
+
+  WindowsStorageType:
+    Type: String
+    Default: gp2
+    AllowedValues:
+      - gp2
+      - gp3
+    Description: Windows EBS Volume Type.
+
+  WindowsDiskSize:
+    Description: Windows disk size in GB
+    Type: Number
+    Default: 50
+
+  LinuxInstance:
+    Type: String
+    Default: t3.micro
+    AllowedValues:
+      - t2.micro
+      - t3.micro
+      - m1.small
+      - m1.large
+    Description: Free tier allows for t2.micro or t3.micro.
+
+  LinuxAMI:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Description: "Linux 2023 64-bit (x86)"
+    Default: linux2023-ami-x86_64
+
+  LinuxStorageType:
+    Type: String
+    Default: gp3
+    AllowedValues:
+      - gp2
+      - gp3
+    Description: Linux EBS Volume Type
+
+  LinuxDiskSize:
+    Description: Linux disk size in GB
+    Type: Number
+    Default: 30
 
   SSHKey:
     Type: AWS::EC2::KeyPair::KeyName
@@ -149,26 +190,59 @@ Resources:
         - Key: Name
           Value: !Sub '${AWS::StackName}-sg'
 
-  EC2Instance:
+  WindowsEC2:
     Type: AWS::EC2::Instance
     Properties:
       AvailabilityZone: !Select [0, Fn::GetAZs: !Ref 'AWS::Region']
-      ImageId: !Ref AmiID
-      InstanceType: !Ref EC2InstanceType
+      ImageId: !Ref WindowsAMI
+      InstanceType: !Ref WindowsInstance
       SubnetId: !Ref PublicSubnetA
       KeyName: !Ref SSHKey
       SecurityGroupIds:
         - !Ref EC2SecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            DeleteOnTermination: true
+            VolumeSize: !Ref WindowsDiskSize
+            Iops: 500
+            VolumeType: !Ref WindowsStorageType
       Tags:
         - Key: Name
-          Value: !Sub '${AWS::StackName}-ec2'
+          Value: !Sub '${AWS::StackName}-WindowsEC2'
 
-  ElasticIP:
+  WindowsEIP:
     Type: AWS::EC2::EIP
     Properties:
-      InstanceId: !Ref EC2Instance
+      InstanceId: !Ref WindowsEC2
       Tags:
         - Key: Name
-          Value: !Sub '${AWS::StackName}-eip'
+          Value: !Sub '${AWS::StackName}-windows-eip'
 
+  LinuxEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Select [0, Fn::GetAZs: !Ref 'AWS::Region']
+      ImageId: !Ref LinuxAMI
+      InstanceType: !Ref LinuxInstance
+      SubnetId: !Ref PublicSubnetA
+      KeyName: !Ref SSHKey
+      SecurityGroupIds:
+        - !Ref EC2SecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            DeleteOnTermination: true
+            VolumeSize: !Ref LinuxDiskSize
+            VolumeType: !Ref LinuxStorageType
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-LinuxEC2'
 
+  LinuxEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref LinuxEC2
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-linux-eip'
