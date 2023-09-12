@@ -62,16 +62,6 @@ Parameters:
     Type: AWS::EC2::KeyPair::KeyName
     Description: Select Key Pair to SSH into the instance
 
-  DBName:
-    NoEcho: false
-    Description: Schema name for Postgresql database
-    Type: String
-    MinLength: 1
-    MaxLength: 16
-    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
-    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
-    Default: products
-
   DBInstanceType:
     Type: String
     Default: db.t3.micro
@@ -104,6 +94,18 @@ Parameters:
     AllowedPattern: "[a-zA-Z0-9]*"
     ConstraintDescription: Must contain only alphanumeric characters.
 
+  IncludePrivateSubnets:
+    Type: String
+    AllowedValues:
+      - True
+      - False
+    Default: True
+    Description: Do you want to create private subnets in addition to public subnets?
+
+Conditions:
+    BuildPrivateSubnets: !Equals
+      - !Ref IncludePrivateSubnets
+      - True
 
 Resources:
   ## VPC
@@ -142,6 +144,7 @@ Resources:
      
   PrivateSubnetA:
     Type: AWS::EC2::Subnet
+    Condition: BuildPrivateSubnets
     Properties:
       VpcId: !Ref myVPC
       AvailabilityZone: !Select [0, Fn::GetAZs: !Ref 'AWS::Region']
@@ -153,6 +156,7 @@ Resources:
      
   PrivateSubnetB:
     Type: AWS::EC2::Subnet
+    Condition: BuildPrivateSubnets
     Properties:
       VpcId: !Ref myVPC
       AvailabilityZone: !Select [1, Fn::GetAZs: !Ref 'AWS::Region']
@@ -209,7 +213,7 @@ Resources:
   EC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Sub '${AWS::StackName}-sg'
+      GroupName: !Sub '${AWS::StackName}-ec2-sg'
       GroupDescription: "Allow HTTP/HTTPS and SSH inbound and outbound traffic"
       VpcId: !Ref myVPC
       SecurityGroupIngress:
@@ -231,7 +235,7 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: !Sub '${AWS::StackName}-sg'
+          Value: !Sub '${AWS::StackName}-ec2-sg'
 
   WindowsEC2:
     Type: AWS::EC2::Instance
@@ -248,7 +252,6 @@ Resources:
           Ebs:
             DeleteOnTermination: true
             VolumeSize: !Ref WindowsDiskSize
-            Iops: 500
             VolumeType: !Ref WindowsStorageType
       Tags:
         - Key: Name
@@ -302,6 +305,21 @@ Resources:
         - Key: Name
           Value: !Sub '${AWS::StackName}-DBsubnetGroup'
 
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${AWS::StackName}-DB-sg'
+      GroupDescription: "Default VPC secruity for RDS instance"
+      VpcId: !Ref myVPC
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-db-sg'
+
   RDSinstance:
     Type: AWS::RDS::DBInstance
     Properties:
@@ -312,6 +330,8 @@ Resources:
       DBSubnetGroupName: !Ref DBSubnetGroup
       MasterUsername: !Ref DBUsername
       MasterUserPassword: !Ref DBPassword
+      VPCSecurityGroups: 
+        - !Ref DBSecurityGroup
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-postgres'
