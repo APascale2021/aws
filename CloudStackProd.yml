@@ -309,12 +309,10 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Sub '${AWS::StackName}-DB-sg'
-      GroupDescription: "Default VPC secruity for RDS instance"
+      GroupDescription: "Default VPC security for RDS instance"
       VpcId: !Ref myVPC
       SecurityGroupIngress:
         - IpProtocol: -1
-          FromPort: 80
-          ToPort: 80
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
@@ -332,6 +330,7 @@ Resources:
       MasterUserPassword: !Ref DBPassword
       VPCSecurityGroups: 
         - !Ref DBSecurityGroup
+      PubliclyAccessible: true
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-postgres'
