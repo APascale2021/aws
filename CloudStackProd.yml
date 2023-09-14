@@ -70,6 +70,13 @@ Parameters:
       - db.t4g.micro
     Description: Free tier allows for db.t3.micro or db.t4g.micro.
 
+  DBName:
+    Description: Name for the default database to be created.
+    Type: String
+    MinLength: 4
+    MaxLength: 15
+    AllowedPattern: "[a-zA-Z]*"
+
   DBStorage:
     Description: Database allocated storage in GB
     Type: Number
@@ -322,6 +329,7 @@ Resources:
     Type: AWS::RDS::DBInstance
     Properties:
       DBInstanceIdentifier: !Sub '${AWS::StackName}-postgres'
+      DBName: !Ref DBName
       DBInstanceClass: !Ref DBInstanceType
       AllocatedStorage: !Ref DBStorage
       Engine: postgres

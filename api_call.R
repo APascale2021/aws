@@ -1,19 +1,18 @@
 library(tidyverse)
 library(httr2)
 library(yaml)
-library(config)
-library(jsonlite)
-library(lubridate)
 library(janitor)
 library(aws.s3)
 
 config <- yaml.load_file('config.yml')
+api_creds <- config$apiserver
+
 ticker <- "MSFT"
 
 # Establish API call parameters
-url <- config$apiserver['requesturl'][[1]]
-headers <- list("X-RapidAPI-Key" = config$apiserver['apikey'][[1]],
-              "X-RapidAPI-Host" = config$apiserver['host'][[1]])
+url <- api_creds$requesturl
+headers <- list("X-RapidAPI-Key" = api_creds$apikey,
+              "X-RapidAPI-Host" = api_creds$host)
 
 params <- list("function" = "TIME_SERIES_DAILY",
               "symbol" = ticker,
@@ -70,9 +69,11 @@ head(df, n=10)
 sapply(df, class)
 
 # Establish connection to AWS environment
+aws_creds <- config$awsaccount
+
 Sys.setenv(
-  AWS_ACCESS_KEY_ID = config$awsaccount['accesskey'][[1]],
-  AWS_SECRET_ACCESS_KEY = config$awsaccount['secretkey'][[1]],
+  AWS_ACCESS_KEY_ID = aws_creds$accesskey,
+  AWS_SECRET_ACCESS_KEY = aws_creds$secretkey,
   AWS_REGION = 'us-east-1'
 )
 
